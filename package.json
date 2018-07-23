@@ -20,12 +20,13 @@
     "notifications"
   ],
   "dependencies": {
+    "argparse": "*",
     "body-parser": "1.14.1",
     "express": "4.13.3",
-    "xmlbuilder": "8.2",
-    "argparse": "*",
+    "fibers": "*",
     "underscore": "*",
-    "fibers": "*"
+    "uuid": "^3.2.1",
+    "xmlbuilder": "8.2"
   },
   "license": "MIT",
   "engines": {

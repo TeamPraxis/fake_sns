@@ -32,6 +32,7 @@ var builder = require('xmlbuilder');
 var argparser = require('argparse').ArgumentParser;
 var _ = require('underscore');
 var Fiber = require('fibers');
+var uuid = require('uuid/v4');
 
 var default_delivery_policy = {
   http: {
@@ -572,7 +573,45 @@ function publish_lambda(options) {
   lambda.handler(event, context, handlerCallback);
 }
 
+/**
+ * Write out the message to a text file in the output folder
+ */
+function publishSmsMessage (req, res) {
+
+  // store the response somewhere?
+  var output = {
+    to: req.query.PhoneNumber,
+    message: req.query.Message
+  };
+  var folderName = 'output';
+
+  // first check if the output folder exists
+  if (!fs.existsSync(__dirname + '/' + folderName)) {
+    fs.mkdirSync(__dirname + '/' + folderName);
+  }
+
+  // write the output
+  fs.writeFileSync(__dirname + '/' + folderName + '/sms-' + uuid() + '.txt', JSON.stringify(output, null, 2));
+
+  // return the response
+  var response = builder.create('PublishResponse');
+  response.att('xmlns', 'http://sns.amazonaws.com/doc/2010-03-31/');
+  var result = response.ele('PublishResult');
+  result.ele('MessageId', get_request_id());
+  var metadata = response.ele('ResponseMetadata');
+  metadata.ele('RequestId', get_request_id());
+
+  res.end(response.end({pretty: true, indent: '  '}));
+}
+
 function publish(req, res) {
+
+  // if there's a PhoneNumber on the query, assume it's a SMS sending thing
+  if (req.query.PhoneNumber) {
+    publishSmsMessage(req, res);
+    return;
+  }
+
   if (!('Message' in req.query && 'TopicArn' in req.query))
     return error(res, 'MissingParameter');
 
@@ -795,6 +834,26 @@ function unsubscribe(req, res) {
   res.end(response.end({pretty: true, indent: '  '}));
 }
 
+function checkIfPhoneNumberIsOptedOut(req, res) {
+  if (!('phoneNumber' in req.query)) {
+    return error(res, 'MissingParameter');
+  }
+
+  // implement some sort of storage to save this?
+
+  // build response to return
+  var response = builder.create('CheckIfPhoneNumberIsOptedOutResponse');
+  response.att('xmlns', 'http://sns.amazonaws.com/doc/2010-03-31/');
+  var metadata = response.ele('ResponseMetadata');
+  metadata.ele('RequestId', get_request_id());
+
+  // return false for now
+  var resultData = response.ele('CheckIfPhoneNumberIsOptedOutResult');
+  resultData.ele('isOptedOut', 'false');
+
+  res.end(response.end({pretty: true, indent: '  '}));
+}
+
 app.use(function(req, res) {
   req.query = req.body;
   if (!('Action' in req.query))
@@ -856,6 +915,10 @@ app.use(function(req, res) {
     case 'AddPermission':
     case 'RemovePermission':
       error(res, 'Unimplemented');
+      break;
+
+    case 'CheckIfPhoneNumberIsOptedOut':
+      checkIfPhoneNumberIsOptedOut(req, res);
       break;
 
     default:
