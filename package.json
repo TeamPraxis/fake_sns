@@ -23,7 +23,7 @@
     "argparse": "*",
     "body-parser": "1.14.1",
     "express": "4.13.3",
-    "fibers": "*",
+    "fibers": "4.0.2",
     "underscore": "*",
     "uuid": "^3.2.1",
     "xmlbuilder": "8.2"
